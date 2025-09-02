@@ -3,6 +3,7 @@
 #include "regist.h"
 #include "client_factory.h"
 #include "client_expert.h"
+
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMessageBox>
@@ -11,9 +12,168 @@
 #include <QCloseEvent>
 #include <QCoreApplication>
 #include <QStyle>
+#include <QComboBox>
+#include <QPushButton>
+#include <QGraphicsOpacityEffect>
+#include <QGraphicsDropShadowEffect>
+#include <QPropertyAnimation>
+#include <QVariantAnimation>
+#include <QEasingCurve>
+#include <QToolButton>
+#include <QLineEdit>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPixmap>
 
 static const char* SERVER_HOST = "127.0.0.1";
 static const quint16 SERVER_PORT = 5555;
+
+// 轻量按钮悬停动画过滤器
+class HoverFilter : public QObject {
+public:
+    explicit HoverFilter(QPushButton* btn) : QObject(btn), btn_(btn) {
+        auto *eff = new QGraphicsDropShadowEffect(btn_);
+        eff->setBlurRadius(8);
+        eff->setOffset(0, 2);
+        eff->setColor(QColor(0, 0, 0, 60));
+        btn_->setGraphicsEffect(eff);
+        effect_ = eff;
+
+        animLift_ = new QVariantAnimation(this);
+        animLift_->setDuration(140);
+        animLift_->setEasingCurve(QEasingCurve::OutCubic);
+        connect(animLift_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v){
+            effect_->setOffset(0, v.toReal());
+        });
+
+        animBlur_ = new QVariantAnimation(this);
+        animBlur_->setDuration(140);
+        animBlur_->setEasingCurve(QEasingCurve::OutCubic);
+        connect(animBlur_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v){
+            effect_->setBlurRadius(v.toReal());
+        });
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override {
+        if (watched == btn_) {
+            if (event->type() == QEvent::Enter) {
+                animLift_->stop();
+                animLift_->setStartValue(effect_->offset().y());
+                animLift_->setEndValue(5.0);
+                animLift_->start();
+
+                animBlur_->stop();
+                animBlur_->setStartValue(effect_->blurRadius());
+                animBlur_->setEndValue(18.0);
+                animBlur_->start();
+            } else if (event->type() == QEvent::Leave) {
+                animLift_->stop();
+                animLift_->setStartValue(effect_->offset().y());
+                animLift_->setEndValue(2.0);
+                animLift_->start();
+
+                animBlur_->stop();
+                animBlur_->setStartValue(effect_->blurRadius());
+                animBlur_->setEndValue(8.0);
+                animBlur_->start();
+            }
+        }
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    QPushButton* btn_{nullptr};
+    QGraphicsDropShadowEffect* effect_{nullptr};
+    QVariantAnimation* animLift_{nullptr};
+    QVariantAnimation* animBlur_{nullptr};
+};
+
+// 将“眼睛”按钮嵌入到 QLineEdit 的小工具
+class PasswordEyeHelper : public QObject {
+public:
+    explicit PasswordEyeHelper(QLineEdit* edit)
+        : QObject(edit), edit_(edit)
+    {
+        btn_ = new QToolButton(edit_);
+        btn_->setCursor(Qt::PointingHandCursor);
+        btn_->setCheckable(true);
+        btn_->setAutoRaise(true);
+        btn_->setToolTip(QStringLiteral("显示/隐藏密码"));
+        btn_->setFocusPolicy(Qt::NoFocus);
+        btn_->setIconSize(QSize(18, 18));
+
+        // 初始为“隐藏”状态（黑点）
+        btn_->setChecked(false);
+        btn_->setIcon(makeEyeIcon(false));
+
+        // 右侧留出空间
+        edit_->setStyleSheet(edit_->styleSheet() + " QLineEdit{ padding-right: 34px; }");
+
+        connect(btn_, &QToolButton::toggled, this, [this](bool on){
+            edit_->setEchoMode(on ? QLineEdit::Normal : QLineEdit::Password);
+            btn_->setIcon(makeEyeIcon(on));
+        });
+
+        edit_->installEventFilter(this);
+        reposition();
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override {
+        if (watched == edit_) {
+            if (event->type() == QEvent::Resize || event->type() == QEvent::StyleChange) {
+                reposition();
+            }
+        }
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    void reposition() {
+        const int m = 6;
+        const int h = edit_->height();
+        const int side = qMin(22, h - m - m);
+        btn_->setIconSize(QSize(side - 4, side - 4));
+        btn_->setGeometry(edit_->rect().right() - side - m, (h - side)/2, side, side);
+    }
+
+    static QIcon makeEyeIcon(bool open) {
+        const int D = 64;
+        QPixmap pm(D, D);
+        pm.fill(Qt::transparent);
+        QPainter p(&pm);
+        p.setRenderHint(QPainter::Antialiasing, true);
+
+        QPainterPath eye;
+        QRectF r(8, 18, 48, 28);
+        eye.moveTo(r.center().x() - r.width()/2, r.center().y());
+        eye.cubicTo(r.left()+8, r.top()-8, r.right()-8, r.top()-8, r.right(), r.center().y());
+        eye.cubicTo(r.right()-8, r.bottom()+8, r.left()+8, r.bottom()+8, r.left(), r.center().y());
+
+        QPen pen(QColor(60,60,60));
+        pen.setWidthF(4.0);
+        p.setPen(pen);
+        p.setBrush(Qt::NoBrush);
+        p.drawPath(eye);
+
+        if (open) {
+            p.setBrush(QColor(60,60,60));
+            p.setPen(Qt::NoPen);
+            p.drawEllipse(QPointF(D/2.0, r.center().y()), 6.5, 6.5);
+        } else {
+            QPen pen2(QColor(60,60,60));
+            pen2.setWidthF(4.0);
+            p.setPen(pen2);
+            p.drawLine(QPointF(14, 50), QPointF(50, 14));
+        }
+        p.end();
+        return QIcon(pm);
+    }
+
+    QLineEdit* edit_;
+    QToolButton* btn_;
+};
 
 Login::Login(QWidget *parent) :
     QWidget(parent),
@@ -21,7 +181,7 @@ Login::Login(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    // 主按钮用蓝色主题（默认会被 role 覆盖）
+    // 主按钮 primary 标记（颜色由 QSS + roleTheme 决定）
     ui->btnLogin->setProperty("primary", true);
 
     // 初始化角色下拉
@@ -37,6 +197,12 @@ Login::Login(QWidget *parent) :
 
     // 初始主题：未选择 -> 灰色
     applyRoleTheme(QStringLiteral("none"));
+
+    // 悬停动效
+    installButtonHoverAnim();
+
+    // 密码可见按钮
+    installPasswordEye();
 }
 
 Login::~Login()
@@ -46,9 +212,23 @@ Login::~Login()
 
 void Login::closeEvent(QCloseEvent *event)
 {
-    // 让登录窗口决定何时退出
     QCoreApplication::quit();
     QWidget::closeEvent(event);
+}
+
+void Login::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
+    // 窗口淡入动画
+    auto *eff = new QGraphicsOpacityEffect(this);
+    eff->setOpacity(0.0);
+    this->setGraphicsEffect(eff);
+    auto *anim = new QPropertyAnimation(eff, "opacity", this);
+    anim->setDuration(220);
+    anim->setStartValue(0.0);
+    anim->setEndValue(1.0);
+    anim->setEasingCurve(QEasingCurve::OutCubic);
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 QString Login::selectedRole() const
@@ -152,10 +332,27 @@ void Login::onRoleChanged(int index)
 
 void Login::applyRoleTheme(const QString& roleKey)
 {
-    // 设置动态属性供 QSS 选择器使用
     this->setProperty("roleTheme", roleKey);
-    // 触发样式重新计算
     this->style()->unpolish(this);
     this->style()->polish(this);
     this->update();
+}
+
+void Login::installButtonHoverAnim()
+{
+    auto fit = [&](QPushButton* b){
+        if (!b) return;
+        auto *f = new HoverFilter(b);
+        b->installEventFilter(f);
+        b->setAttribute(Qt::WA_Hover, true);
+    };
+    fit(ui->btnLogin);
+    fit(ui->btnToReg);
+}
+
+void Login::installPasswordEye()
+{
+    // 在密码输入框右侧添加“小眼睛”
+    ui->lePassword->setEchoMode(QLineEdit::Password);
+    new PasswordEyeHelper(ui->lePassword);
 }
