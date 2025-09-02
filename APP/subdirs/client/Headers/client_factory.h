@@ -40,9 +40,9 @@ private:
     void updateTabEnabled();
     void sendCreateOrder(const QString& title, const QString& desc);
 
-    CommWidget*  commWidget_   = nullptr;
-    DevicePanel* devicePanel_  = nullptr;
-    KnowledgePanel* kbPanel_   = nullptr;   // 新增：企业知识库（嵌入）
+    CommWidget*   commWidget_   = nullptr;
+    DevicePanel*  devicePanel_  = nullptr;
+    KnowledgePanel* kbPanel_    = nullptr;   // 企业知识库（嵌入）
 };
 
 #endif // CLIENT_FACTORY_H
