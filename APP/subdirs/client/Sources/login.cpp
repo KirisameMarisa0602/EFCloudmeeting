@@ -10,10 +10,10 @@
 #include <QTcpSocket>
 #include <QCloseEvent>
 #include <QCoreApplication>
+#include <QStyle>
 
 static const char* SERVER_HOST = "127.0.0.1";
 static const quint16 SERVER_PORT = 5555;
-
 
 Login::Login(QWidget *parent) :
     QWidget(parent),
@@ -21,16 +21,22 @@ Login::Login(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    // 主按钮用蓝色主题
-       ui->btnLogin->setProperty("primary", true);
+    // 主按钮用蓝色主题（默认会被 role 覆盖）
+    ui->btnLogin->setProperty("primary", true);
 
-       // 初始化角色下拉
-       ui->cbRole->clear();
-       ui->cbRole->addItem("请选择身份"); // 0
-       ui->cbRole->addItem("专家");        // 1
-       ui->cbRole->addItem("工厂");        // 2
-       ui->cbRole->setCurrentIndex(0);
+    // 初始化角色下拉
+    ui->cbRole->clear();
+    ui->cbRole->addItem("请选择身份"); // 0
+    ui->cbRole->addItem("专家");        // 1
+    ui->cbRole->addItem("工厂");        // 2
+    ui->cbRole->setCurrentIndex(0);
 
+    // 连接角色切换信号
+    connect(ui->cbRole, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &Login::onRoleChanged);
+
+    // 初始主题：未选择 -> 灰色
+    applyRoleTheme(QStringLiteral("none"));
 }
 
 Login::~Login()
@@ -136,3 +142,20 @@ void Login::on_btnToReg_clicked()
     openRegistDialog(this, selectedRole(), ui->leUsername->text(), ui->lePassword->text());
 }
 
+void Login::onRoleChanged(int index)
+{
+    QString key = QStringLiteral("none");
+    if (index == 1) key = QStringLiteral("expert");
+    else if (index == 2) key = QStringLiteral("factory");
+    applyRoleTheme(key);
+}
+
+void Login::applyRoleTheme(const QString& roleKey)
+{
+    // 设置动态属性供 QSS 选择器使用
+    this->setProperty("roleTheme", roleKey);
+    // 触发样式重新计算
+    this->style()->unpolish(this);
+    this->style()->polish(this);
+    this->update();
+}

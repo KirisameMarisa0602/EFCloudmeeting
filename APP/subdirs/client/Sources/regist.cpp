@@ -9,6 +9,7 @@
 #include <QComboBox>
 #include <QLineEdit>
 #include <QRegularExpression>
+#include <QStyle>
 
 static const char* SERVER_HOST = "127.0.0.1";
 static const quint16 SERVER_PORT = 5555;
@@ -29,6 +30,12 @@ Regist::Regist(QWidget *parent) :
         ui->cbRole->addItem("工厂");        // 2
         ui->cbRole->setCurrentIndex(0);
 
+    // 连接角色切换
+    connect(ui->cbRole, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &Regist::onRoleChanged);
+
+    // 初始主题：未选择 -> 灰色
+    applyRoleTheme(QStringLiteral("none"));
 }
 
 Regist::~Regist()
@@ -45,6 +52,9 @@ void Regist::preset(const QString &role, const QString &user, const QString &pas
     ui->leUsername->setText(user);
     ui->lePassword->setText(pass);
     ui->leConfirm->clear();
+
+    // 预填角色后，立即应用对应主题
+    onRoleChanged(ui->cbRole->currentIndex());
 }
 
 QString Regist::selectedRole() const
@@ -106,16 +116,11 @@ void Regist::on_btnRegister_clicked()
         return;
     }
 
-    // 本地密码格式校验（与服务端一致）：
-    // - 至少9位
-    // - 同时包含字母和数字
-    // - 仅支持数字和字母
-    {
-        const QRegularExpression rx(QStringLiteral("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{9,}$"));
-        if (!rx.match(password).hasMatch()) {
-            QMessageBox::warning(this, "提示", "密码需至少9位，且同时包含字母和数字，仅支持数字和字母");
-            return;
-        }
+    // 本地密码格式校验（与服务端一致）
+    const QRegularExpression rx(QStringLiteral("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{9,}$"));
+    if (!rx.match(password).hasMatch()) {
+        QMessageBox::warning(this, "提示", "密码需至少9位，且同时包含字母和数字，仅支持数字和字母");
+        return;
     }
 
     QJsonObject req{
@@ -143,6 +148,22 @@ void Regist::on_btnRegister_clicked()
 void Regist::on_btnBack_clicked()
 {
     close(); // 关闭注册窗口，登录窗口将由外部连接恢复显示
+}
+
+void Regist::onRoleChanged(int index)
+{
+    QString key = QStringLiteral("none");
+    if (index == 1) key = QStringLiteral("expert");
+    else if (index == 2) key = QStringLiteral("factory");
+    applyRoleTheme(key);
+}
+
+void Regist::applyRoleTheme(const QString& roleKey)
+{
+    this->setProperty("roleTheme", roleKey);
+    this->style()->unpolish(this);
+    this->style()->polish(this);
+    this->update();
 }
 
 // 顶层打开注册窗口：隐藏登录窗口，注册窗口关闭时恢复

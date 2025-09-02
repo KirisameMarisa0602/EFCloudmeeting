@@ -28,10 +28,12 @@ public slots:
 private slots:
     void on_btnRegister_clicked();
     void on_btnBack_clicked();
+    void onRoleChanged(int index); // 新增：注册界面角色切换主题
 
 private:
     bool sendRequest(const QJsonObject &obj, QJsonObject &reply, QString *errMsg = nullptr);
     QString selectedRole() const; // "expert" | "factory" | ""
+    void applyRoleTheme(const QString& roleKey); // 新增：应用主题（"expert"/"factory"/"none"）
 
 private:
     Ui::Regist *ui;
@@ -39,6 +41,5 @@ private:
 
 void openRegistDialog(QWidget *parent, const QString &prefRole,
                       const QString &prefUser, const QString &prefPass);
-
 
 #endif // REGIST_H
