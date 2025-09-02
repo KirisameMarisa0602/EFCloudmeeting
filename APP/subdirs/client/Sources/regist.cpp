@@ -8,6 +8,7 @@
 #include <QHostAddress>
 #include <QComboBox>
 #include <QLineEdit>
+#include <QRegularExpression>
 
 static const char* SERVER_HOST = "127.0.0.1";
 static const quint16 SERVER_PORT = 5555;
@@ -103,6 +104,18 @@ void Regist::on_btnRegister_clicked()
     if (role.isEmpty()) {
         QMessageBox::warning(this, "提示", "请选择身份");
         return;
+    }
+
+    // 本地密码格式校验（与服务端一致）：
+    // - 至少9位
+    // - 同时包含字母和数字
+    // - 仅支持数字和字母
+    {
+        const QRegularExpression rx(QStringLiteral("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{9,}$"));
+        if (!rx.match(password).hasMatch()) {
+            QMessageBox::warning(this, "提示", "密码需至少9位，且同时包含字母和数字，仅支持数字和字母");
+            return;
+        }
     }
 
     QJsonObject req{

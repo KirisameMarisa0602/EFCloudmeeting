@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QCryptographicHash>
+#include <QRegularExpression>
 #include <QDebug>
 #include <QTime>
 #include <QDateTime>
@@ -20,6 +21,24 @@ static const char* DB_FILE = "users.db";
 
 static QString hashPass(const QString &pass) {
     return QString::fromLatin1(QCryptographicHash::hash(pass.toUtf8(), QCryptographicHash::Sha256).toHex());
+}
+
+// 注册密码格式校验：
+// - 大于8位（至少9位）
+// - 必须同时包含字母和数字
+// - 仅允许数字和字母（不支持特殊字符）
+static bool isValidPasswordFormat(const QString& pass, QString* err = nullptr) {
+    if (pass.size() < 9) {
+        if (err) *err = QStringLiteral("密码长度需大于8位");
+        return false;
+    }
+    const QRegularExpression rx(QStringLiteral("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{9,}$"));
+    const auto m = rx.match(pass);
+    if (!m.hasMatch()) {
+        if (err) *err = QStringLiteral("密码需至少9位，且同时包含字母和数字，仅支持数字和字母");
+        return false;
+    }
+    return true;
 }
 
 static bool tableExists(const QString &name)
@@ -46,22 +65,28 @@ static bool migrateOldUsersToNewTables()
         qCritical() << "Select legacy users failed:" << q.lastError().text();
         return false;
     }
+    // 将旧数据迁移时，保证密码为加密存储：
+    // 若检测到不是 64 位十六进制（SHA-256）的形式，则对其进行 hash 再写入新表
+    const QRegularExpression sha256Hex(QStringLiteral("^[0-9a-f]{64}$"));
     QSqlQuery qi;
     while (q.next()) {
         const QString u = q.value(0).toString();
         const QString p = q.value(1).toString();
         const QString r = q.value(2).toString();
+        const bool alreadyHashed = sha256Hex.match(p).hasMatch();
+        const QString storePass = alreadyHashed ? p : hashPass(p);
+
         if (r == "expert") {
             qi.prepare("INSERT OR IGNORE INTO expert_users(username, password) VALUES(?, ?)");
             qi.addBindValue(u);
-            qi.addBindValue(p);
+            qi.addBindValue(storePass);
             if (!qi.exec()) {
                 qWarning() << "Migrate expert failed:" << qi.lastError().text();
             }
         } else if (r == "factory") {
             qi.prepare("INSERT OR IGNORE INTO factory_users(username, password) VALUES(?, ?)");
             qi.addBindValue(u);
-            qi.addBindValue(p);
+            qi.addBindValue(storePass);
             if (!qi.exec()) {
                 qWarning() << "Migrate factory failed:" << qi.lastError().text();
             }
@@ -182,7 +207,7 @@ private:
                 return makeReply(false, "invalid role");
             }
             if (username.isEmpty() || password.isEmpty()) {
-                return makeReply(false, "账号或密码为空");
+                return makeReply(false, QStringLiteral("账号或密码为空"));
             }
 
             if (action == "register") {
@@ -198,13 +223,13 @@ private:
             QString desc = req.value("desc").toString();
             QString factory_user = req.value("factory_user").toString();
             int id = generateRandomOrderId();
-            if (id < 0) return makeReply(false, "无法分配工单号");
+            if (id < 0) return makeReply(false, QStringLiteral("无法分配工单号"));
             QSqlQuery q;
             q.prepare("INSERT INTO orders (id, title, desc, status, factory_user) VALUES (?, ?, ?, ?, ?)");
             q.addBindValue(id);
             q.addBindValue(title);
             q.addBindValue(desc);
-            q.addBindValue("待处理");
+            q.addBindValue(QStringLiteral("待处理"));
             q.addBindValue(factory_user);
             if (q.exec()) return makeReply(true, "ok");
             else return makeReply(false, q.lastError().text());
@@ -220,7 +245,7 @@ private:
             if (!keyword.isEmpty()) {
                 sql += " AND (title LIKE ? OR desc LIKE ?)";
             }
-            if (!status.isEmpty() && status != "全部") {
+            if (!status.isEmpty() && status != QStringLiteral("全部")) {
                 sql += " AND status=?";
             }
             QSqlQuery q;
@@ -231,7 +256,7 @@ private:
                 q.addBindValue(like);
                 q.addBindValue(like);
             }
-            if (!status.isEmpty() && status != "全部") {
+            if (!status.isEmpty() && status != QStringLiteral("全部")) {
                 q.addBindValue(status);
             }
             q.exec();
@@ -266,7 +291,7 @@ private:
             q.addBindValue(id);
             q.addBindValue(username);
             if (!q.exec() || !q.next()) {
-                return makeReply(false, "只能销毁自己创建的工单");
+                return makeReply(false, QStringLiteral("只能销毁自己创建的工单"));
             }
             q.prepare("DELETE FROM orders WHERE id=?");
             q.addBindValue(id);
@@ -326,8 +351,12 @@ private:
     }
 
     QJsonObject doRegister(const QString &user, const QString &role, const QString &pass) {
+        QString perr;
+        if (!isValidPasswordFormat(pass, &perr)) {
+            return makeReply(false, perr);
+        }
         if (existsInAny(user)) {
-            return makeReply(false, "用户已存在");
+            return makeReply(false, QStringLiteral("用户已存在"));
         }
         QSqlQuery q;
         if (role == "expert") {
@@ -339,7 +368,7 @@ private:
         q.addBindValue(hashPass(pass));
         if (!q.exec()) {
             qWarning() << "Insert failed:" << q.lastError().text();
-            return makeReply(false, "数据库错误");
+            return makeReply(false, QStringLiteral("数据库错误"));
         }
         return makeReply(true, "ok");
     }
@@ -354,10 +383,10 @@ private:
         q.addBindValue(user);
         q.addBindValue(hashPass(pass));
         if (!q.exec()) {
-            return makeReply(false, "数据库错误");
+            return makeReply(false, QStringLiteral("数据库错误"));
         }
         if (q.next()) return makeReply(true, "ok");
-        return makeReply(false, "账号或密码不正确");
+        return makeReply(false, QStringLiteral("账号或密码不正确"));
     }
 
     static QJsonObject makeReply(bool ok, const QString &msg) {
