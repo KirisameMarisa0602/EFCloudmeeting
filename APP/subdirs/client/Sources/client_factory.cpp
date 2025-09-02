@@ -83,13 +83,15 @@ ClientFactory::ClientFactory(QWidget *parent) :
     commWidget_ = new CommWidget(this);
     ui->verticalLayoutTabRealtime->addWidget(commWidget_);
 
-    // 设备管理面板
+    // 设备管理面板（纯本地模拟曲线，不依赖入会）
     devicePanel_ = new DevicePanel(this);
     ui->verticalLayoutTabDevice->addWidget(devicePanel_);
 
+    // 面板发起控制 -> 会议主窗广播
     connect(devicePanel_, &DevicePanel::deviceControlSent,
             this, &ClientFactory::onSendDeviceControl);
 
+    // 会议主窗接收到（或本端回显） -> 面板写日志
     connect(commWidget_->mainWindow(), &MainWindow::deviceControlMessage,
             devicePanel_, [this](const QString& device,const QString& cmd,const QString& sender,qint64 ts){
                 devicePanel_->applyControlCommand(device, cmd, sender, ts);
@@ -100,16 +102,13 @@ ClientFactory::ClientFactory(QWidget *parent) :
     kbPanel_->setServer(QString::fromLatin1(SERVER_HOST), SERVER_PORT);
     ui->verticalLayoutTabOther->addWidget(kbPanel_);
 
-    // 选择页时：实时通讯聚焦；设备页设上下文；知识库页刷新
+    // 选择页时：实时通讯聚焦；设备页设置上下文；知识库页刷新
     connect(ui->tabWidget, &QTabWidget::currentChanged, this, [this](int idx){
         QWidget* page = ui->tabWidget->widget(idx);
         if (page == ui->tabRealtime) {
             commWidget_->mainWindow()->setFocus();
         } else if (page == ui->tabDevice) {
-            int row = ui->tableOrders->currentRow();
-            if (row >= 0 && row < orders.size() && devicePanel_) {
-                devicePanel_->setOrderContext(QString::number(orders[row].id));
-            }
+            ensureDeviceContextFromSelection();   // 进入设备页时确保上下文
         } else if (page == ui->tabOther) {
             int row = ui->tableOrders->currentRow();
             if (row >= 0 && row < orders.size() && kbPanel_) {
@@ -119,7 +118,14 @@ ClientFactory::ClientFactory(QWidget *parent) :
         }
     });
 
-    // 原有连接
+    // 切换选中工单时，如果当前在“设备管理”页，同步上下文
+    connect(ui->tableOrders, &QTableWidget::itemSelectionChanged, this, [this](){
+        if (ui->tabWidget->currentWidget() == ui->tabDevice) {
+            ensureDeviceContextFromSelection();
+        }
+    });
+
+    // 原有连接（注意：槽指针不加括号）
     connect(ui->tabWidget, &QTabWidget::currentChanged, this, &ClientFactory::on_tabChanged);
     connect(ui->btnSearchOrder, &QPushButton::clicked, this, &ClientFactory::onSearchOrder);
     connect(ui->btnRefreshOrderStatus, &QPushButton::clicked, this, &ClientFactory::refreshOrders);
@@ -132,6 +138,22 @@ ClientFactory::ClientFactory(QWidget *parent) :
 ClientFactory::~ClientFactory()
 {
     delete ui;
+}
+
+void ClientFactory::ensureDeviceContextFromSelection()
+{
+    if (!devicePanel_) return;
+
+    // 若无选中行且有数据，默认选中第一行
+    if (ui->tableOrders->currentRow() < 0 && ui->tableOrders->rowCount() > 0) {
+        ui->tableOrders->setCurrentCell(0, 0);
+    }
+
+    int row = ui->tableOrders->currentRow();
+    if (row >= 0 && row < orders.size()) {
+        const QString orderId = QString::number(orders[row].id);
+        devicePanel_->setOrderContext(orderId);
+    }
 }
 
 void ClientFactory::refreshOrders()
@@ -193,6 +215,11 @@ void ClientFactory::refreshOrders()
     tbl->resizeColumnsToContents();
     tbl->clearSelection();
     tbl->setSortingEnabled(wasSorting);
+
+    // 如果当前就在“设备管理”页，刷新完工单后立即确保上下文（让曲线立刻出现）
+    if (ui->tabWidget->currentWidget() == ui->tabDevice) {
+        ensureDeviceContextFromSelection();
+    }
 }
 
 void ClientFactory::on_btnNewOrder_clicked()
@@ -289,10 +316,7 @@ void ClientFactory::on_tabChanged(int idx)
     if (idx == 0) {
         refreshOrders();
     } else if (page == ui->tabDevice) {
-        int row = ui->tableOrders->currentRow();
-        if (row >= 0 && row < orders.size() && devicePanel_) {
-            devicePanel_->setOrderContext(QString::number(orders[row].id));
-        }
+        ensureDeviceContextFromSelection();  // 兜底：进入设备页确保上下文
     } else if (page == ui->tabOther) {
         int row = ui->tableOrders->currentRow();
         if (row >= 0 && row < orders.size() && kbPanel_) {
@@ -309,5 +333,6 @@ void ClientFactory::onSearchOrder()
 
 void ClientFactory::onSendDeviceControl(const QString& device, const QString& command)
 {
+    // 广播给会议主窗（专家/工厂都会收到并在各自 DevicePanel 里写日志）
     commWidget_->mainWindow()->sendDeviceControlBroadcast(device, command);
 }
