@@ -108,7 +108,7 @@ public:
         btn_->setIcon(makeEyeIcon(false));
 
         // 右侧留出空间
-        edit_->setStyleSheet(edit_->styleSheet() + " QLineEdit{ padding-right: 34px; }");
+        edit_->setStyleSheet(edit_->styleSheet() + "padding-right: 34px;");
 
         connect(btn_, &QToolButton::toggled, this, [this](bool on){
             edit_->setEchoMode(on ? QLineEdit::Normal : QLineEdit::Password);
