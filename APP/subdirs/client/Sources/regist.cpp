@@ -12,78 +12,12 @@
 #include <QRegularExpression>
 #include <QStyle>
 #include <QPushButton>
-#include <QGraphicsOpacityEffect>
-#include <QGraphicsDropShadowEffect>
-#include <QPropertyAnimation>
-#include <QVariantAnimation>
-#include <QEasingCurve>
 #include <QToolButton>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
 
-// 悬停动效（与 Login 同风格）
-class HoverFilter_R : public QObject {
-public:
-    explicit HoverFilter_R(QPushButton* btn) : QObject(btn), btn_(btn) {
-        auto *eff = new QGraphicsDropShadowEffect(btn_);
-        eff->setBlurRadius(8);
-        eff->setOffset(0, 2);
-        eff->setColor(QColor(0, 0, 0, 60));
-        btn_->setGraphicsEffect(eff);
-        effect_ = eff;
-
-        animLift_ = new QVariantAnimation(this);
-        animLift_->setDuration(140);
-        animLift_->setEasingCurve(QEasingCurve::OutCubic);
-        connect(animLift_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v){
-            effect_->setOffset(0, v.toReal());
-        });
-
-        animBlur_ = new QVariantAnimation(this);
-        animBlur_->setDuration(140);
-        animBlur_->setEasingCurve(QEasingCurve::OutCubic);
-        connect(animBlur_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v){
-            effect_->setBlurRadius(v.toReal());
-        });
-    }
-
-protected:
-    bool eventFilter(QObject *watched, QEvent *event) override {
-        if (watched == btn_) {
-            if (event->type() == QEvent::Enter) {
-                animLift_->stop();
-                animLift_->setStartValue(effect_->offset().y());
-                animLift_->setEndValue(5.0);
-                animLift_->start();
-
-                animBlur_->stop();
-                animBlur_->setStartValue(effect_->blurRadius());
-                animBlur_->setEndValue(18.0);
-                animBlur_->start();
-            } else if (event->type() == QEvent::Leave) {
-                animLift_->stop();
-                animLift_->setStartValue(effect_->offset().y());
-                animLift_->setEndValue(2.0);
-                animLift_->start();
-
-                animBlur_->stop();
-                animBlur_->setStartValue(effect_->blurRadius());
-                animBlur_->setEndValue(8.0);
-                animBlur_->start();
-            }
-        }
-        return QObject::eventFilter(watched, event);
-    }
-
-private:
-    QPushButton* btn_{nullptr};
-    QGraphicsDropShadowEffect* effect_{nullptr};
-    QVariantAnimation* animLift_{nullptr};
-    QVariantAnimation* animBlur_{nullptr};
-};
-
-// 与 Login 中一致的“密码小眼睛”工具
+// 与 Login 中一致的“密码小眼睛”工具（无图形特效，稳定）
 class PasswordEyeHelper_R : public QObject {
 public:
     explicit PasswordEyeHelper_R(QLineEdit* edit)
@@ -100,6 +34,7 @@ public:
         btn_->setChecked(false);
         btn_->setIcon(makeEyeIcon(false));
 
+        // 仅对本控件设置右侧内边距
         edit_->setStyleSheet(edit_->styleSheet() + "padding-right: 34px;");
 
         connect(btn_, &QToolButton::toggled, this, [this](bool on){
@@ -193,9 +128,6 @@ Regist::Regist(QWidget *parent) :
     // 初始主题：未选择 -> 灰色
     applyRoleTheme(QStringLiteral("none"));
 
-    // 悬停动效
-    installButtonHoverAnim();
-
     // 密码可见按钮（密码与确认密码均添加）
     installPasswordEye();
 }
@@ -203,21 +135,6 @@ Regist::Regist(QWidget *parent) :
 Regist::~Regist()
 {
     delete ui;
-}
-
-void Regist::showEvent(QShowEvent *event)
-{
-    QWidget::showEvent(event);
-    // 窗口淡入动画
-    auto *eff = new QGraphicsOpacityEffect(this);
-    eff->setOpacity(0.0);
-    this->setGraphicsEffect(eff);
-    auto *anim = new QPropertyAnimation(eff, "opacity", this);
-    anim->setDuration(220);
-    anim->setStartValue(0.0);
-    anim->setEndValue(1.0);
-    anim->setEasingCurve(QEasingCurve::OutCubic);
-    anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 void Regist::preset(const QString &role, const QString &user, const QString &pass)
@@ -344,21 +261,8 @@ void Regist::applyRoleTheme(const QString& roleKey)
     this->update();
 }
 
-void Regist::installButtonHoverAnim()
-{
-    auto fit = [&](QPushButton* b){
-        if (!b) return;
-        auto *f = new HoverFilter_R(b);
-        b->installEventFilter(f);
-        b->setAttribute(Qt::WA_Hover, true);
-    };
-    fit(ui->btnRegister);
-    fit(ui->btnBack);
-}
-
 void Regist::installPasswordEye()
 {
-    // 在“密码”和“确认密码”右侧添加“小眼睛”
     ui->lePassword->setEchoMode(QLineEdit::Password);
     ui->leConfirm->setEchoMode(QLineEdit::Password);
     new PasswordEyeHelper_R(ui->lePassword);
@@ -369,15 +273,12 @@ void Regist::installPasswordEye()
 void openRegistDialog(QWidget *login, const QString &prefRole,
                       const QString &prefUser, const QString &prefPass)
 {
-    // 1) 创建为顶层窗口（无 parent）
     Regist *r = new Regist(nullptr);
     r->setAttribute(Qt::WA_DeleteOnClose);
     r->preset(prefRole, prefUser, prefPass);
 
-    // 2) 隐藏登录窗口，避免残留
     if (login) login->hide();
 
-    // 3) 注册成功时：回填登录界面并恢复显示
     QObject::connect(r, &Regist::registered, r, [login](const QString &u, const QString &role){
         if (!login) return;
         if (auto cb = login->findChild<QComboBox*>("cbRole")) {
@@ -390,16 +291,14 @@ void openRegistDialog(QWidget *login, const QString &prefRole,
         login->show(); login->raise(); login->activateWindow();
     });
 
-    // 4) 无论何种方式关闭注册窗口，都恢复显示登录窗口
     QObject::connect(r, &QObject::destroyed, login, [login](){
         if (!login) return;
         login->show(); login->raise(); login->activateWindow();
     });
 
-    // 5) 将注册窗口居中到登录窗口位置
     if (login) {
         const QRect lg = login->geometry();
-        r->resize(r->sizeHint().expandedTo(QSize(720, 680))); // 略增尺寸以匹配更大字体
+        r->resize(r->sizeHint().expandedTo(QSize(720, 680)));
         const QPoint p = lg.center() - QPoint(r->width()/2, r->height()/2);
         r->move(p);
     }

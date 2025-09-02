@@ -19,9 +19,6 @@ public:
     explicit Regist(QWidget *parent = nullptr);
     ~Regist();
 
-protected:
-    void showEvent(QShowEvent *event) override; // 窗口淡入动画
-
 signals:
     void registered(const QString &username, const QString &role);
 
@@ -37,7 +34,6 @@ private:
     bool sendRequest(const QJsonObject &obj, QJsonObject &reply, QString *errMsg = nullptr);
     QString selectedRole() const; // "expert" | "factory" | ""
     void applyRoleTheme(const QString& roleKey); // 应用主题（"expert"/"factory"/"none"）
-    void installButtonHoverAnim();               // 按钮悬停动效
     void installPasswordEye();                   // 安装密码可见按钮（密码与确认密码）
 
 private:

@@ -26,7 +26,6 @@
     </widget>
    </item>
 
-   <!-- 关键：让卡片区域垂直方向可扩展，避免按钮区域被压缩 -->
    <item>
     <widget class="QFrame" name="card">
      <property name="sizePolicy">
@@ -55,12 +54,6 @@
         <property name="echoMode"><enum>QLineEdit::Password</enum></property>
       </widget></item>
 
-      <!-- 给按钮区域预留一些空间，避免紧贴输入框时看起来像“消失” -->
-      <item><spacer name="spacer_between_form_and_buttons">
-        <property name="orientation"><enum>Qt::Vertical</enum></property>
-        <property name="sizeHint"><size><width>20</width><height>6</height></size></property>
-      </spacer></item>
-
       <item>
        <layout class="QVBoxLayout" name="btnsLayout">
         <property name="spacing"><number>10</number></property>
@@ -75,17 +68,15 @@
        </layout>
       </item>
 
-      <!-- 可选：让卡片内部底部留一点缓冲 -->
       <item><spacer name="spacer_inside_card_bottom">
         <property name="orientation"><enum>Qt::Vertical</enum></property>
-        <property name="sizeHint"><size><width>20</width><height>4</height></size></property>
+        <property name="sizeHint"><size><width>20</width><height>8</height></size></property>
       </spacer></item>
 
      </layout>
     </widget>
    </item>
 
-   <!-- 外层底部 spacer，保持整体留白 -->
    <item><spacer name="spacer_bottom">
      <property name="orientation"><enum>Qt::Vertical</enum></property>
      <property name="sizeHint"><size><width>20</width><height>12</height></size></property>

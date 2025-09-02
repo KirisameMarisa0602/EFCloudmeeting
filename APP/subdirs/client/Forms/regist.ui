@@ -59,11 +59,6 @@
         <property name="echoMode"><enum>QLineEdit::Password</enum></property>
       </widget></item>
 
-      <item><spacer name="spacer_between_form_and_buttons">
-        <property name="orientation"><enum>Qt::Vertical</enum></property>
-        <property name="sizeHint"><size><width>20</width><height>6</height></size></property>
-      </spacer></item>
-
       <item>
        <layout class="QVBoxLayout" name="btnsLayout">
         <property name="spacing"><number>10</number></property>
@@ -80,7 +75,7 @@
 
       <item><spacer name="spacer_inside_card_bottom">
         <property name="orientation"><enum>Qt::Vertical</enum></property>
-        <property name="sizeHint"><size><width>20</width><height>4</height></size></property>
+        <property name="sizeHint"><size><width>20</width><height>8</height></size></property>
       </spacer></item>
 
      </layout>

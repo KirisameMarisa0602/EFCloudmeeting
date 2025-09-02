@@ -1,8 +1,8 @@
-/* 放大字体 + 更清晰的对比度 */
+/* 放大字体，保证可读性 */
 * {
     font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
-    font-size: 16px;     /* 放大基础字号 */
-    color: #1f2937;      /* slate-800 */
+    font-size: 16px;
+    color: #1f2937; /* slate-800 */
 }
 
 /* 背景：根据 roleTheme 切换渐变（none/gray，expert/blue，factory/green） */
@@ -19,26 +19,13 @@ QWidget[roleTheme="factory"] {
                                 stop:0 #e9f8ef, stop:1 #b8e3c2); /* 淡绿->绿 */
 }
 
-/* 让内部容器透明以露出渐变背景 */
+/* 容器透明，露出背景 */
 QGroupBox, QFrame, QWidget#centralWidget {
     background: transparent;
     border: none;
 }
 
-/* 如 UI 中有 #title 标签可获得标题样式 */
-QLabel#title {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    color: #111827;
-}
-
-/* 文本标签 */
-QLabel {
-    color: #111827;
-}
-
-/* 输入与文本框（更大高度/圆角） */
+/* 输入控件 */
 QLineEdit, QPlainTextEdit, QTextEdit {
     background-color: #ffffff;
     border: 1px solid #d1d5db;      /* gray-300 */
@@ -48,32 +35,28 @@ QLineEdit, QPlainTextEdit, QTextEdit {
     selection-color: #111827;
     min-height: 38px;
 }
-
-/* 针对密码输入框，为“小眼睛”预留右侧内边距（需与对象名匹配） */
-QLineEdit#lePassword, QLineEdit#leConfirm {
-    padding-right: 34px;
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus {
+    border: 1px solid #94a3b8; /* slate-400 */
 }
 
-/* 焦点边框根据角色变化 */
+/* 角色主题的焦点边框 */
 QWidget[roleTheme="expert"] QLineEdit:focus,
 QWidget[roleTheme="expert"] QPlainTextEdit:focus,
 QWidget[roleTheme="expert"] QTextEdit:focus {
     border: 1px solid #1976d2;
 }
-
 QWidget[roleTheme="factory"] QLineEdit:focus,
 QWidget[roleTheme="factory"] QPlainTextEdit:focus,
 QWidget[roleTheme="factory"] QTextEdit:focus {
     border: 1px solid #2e7d32;
 }
-
 QWidget[roleTheme="none"] QLineEdit:focus,
 QWidget[roleTheme="none"] QPlainTextEdit:focus,
 QWidget[roleTheme="none"] QTextEdit:focus {
     border: 1px solid #6b7280;
 }
 
-/* 下拉框（角色选择） */
+/* 角色选择下拉框 */
 QComboBox {
     background: #ffffff;
     border: 1px solid #d1d5db;
@@ -91,11 +74,9 @@ QComboBox::drop-down {
     border-top-right-radius: 12px;
     border-bottom-right-radius: 12px;
 }
-QComboBox::down-arrow {
-    image: none;
-}
+QComboBox::down-arrow { image: none; }
 
-/* 通用按钮（非 primary） */
+/* 按钮样式 */
 QPushButton {
     background-color: rgba(255,255,255,0.9);
     border: 1px solid #d1d5db;
@@ -104,12 +85,8 @@ QPushButton {
     color: #111827;
     min-height: 40px;
 }
-QPushButton:hover {
-    background-color: rgba(255,255,255,1.0);
-}
-QPushButton:pressed {
-    background-color: #eef2f7;
-}
+QPushButton:hover { background-color: rgba(255,255,255,1.0); }
+QPushButton:pressed { background-color: #eef2f7; }
 QPushButton:disabled {
     color: #9ca3af;
     background-color: #f3f4f6;
@@ -122,45 +99,26 @@ QWidget[roleTheme="expert"] QPushButton[primary="true"] {
     color: #ffffff;
     border: 1px solid #115293;
 }
-QWidget[roleTheme="expert"] QPushButton[primary="true"]:hover {
-    background-color: #1e88e5;
-}
-QWidget[roleTheme="expert"] QPushButton[primary="true"]:pressed {
-    background-color: #1565c0;
-}
+QWidget[roleTheme="expert"] QPushButton[primary="true"]:hover { background-color: #1e88e5; }
+QWidget[roleTheme="expert"] QPushButton[primary="true"]:pressed { background-color: #1565c0; }
 
 QWidget[roleTheme="factory"] QPushButton[primary="true"] {
     background-color: #2e7d32;
     color: #ffffff;
     border: 1px solid #1b5e20;
 }
-QWidget[roleTheme="factory"] QPushButton[primary="true"]:hover {
-    background-color: #388e3c;
-}
-QWidget[roleTheme="factory"] QPushButton[primary="true"]:pressed {
-    background-color: #1b5e20;
-}
+QWidget[roleTheme="factory"] QPushButton[primary="true"]:hover { background-color: #388e3c; }
+QWidget[roleTheme="factory"] QPushButton[primary="true"]:pressed { background-color: #1b5e20; }
 
 QWidget[roleTheme="none"] QPushButton[primary="true"] {
     background-color: #6b7280; /* gray-500 */
     color: #ffffff;
     border: 1px solid #4b5563; /* gray-600 */
 }
-QWidget[roleTheme="none"] QPushButton[primary="true"]:hover {
-    background-color: #7b8391;
-}
-QWidget[roleTheme="none"] QPushButton[primary="true"]:pressed {
-    background-color: #4b5563;
-}
+QWidget[roleTheme="none"] QPushButton[primary="true"]:hover { background-color: #7b8391; }
+QWidget[roleTheme="none"] QPushButton[primary="true"]:pressed { background-color: #4b5563; }
 
-/* 表格、列表等 */
-QTableView, QListView, QTreeView {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-}
-
-/* 分隔线 */
+/* 分隔线（如果有） */
 QFrame[frameShape="4"], /* HLine */
 QFrame[frameShape="5"]  /* VLine */ {
     color: #e5e7eb;

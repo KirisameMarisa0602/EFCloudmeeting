@@ -25,7 +25,6 @@ public:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
-    void showEvent(QShowEvent *event) override; // 窗口淡入动画
 
 private slots:
     void on_btnLogin_clicked();
@@ -36,7 +35,6 @@ private:
     bool sendRequest(const QJsonObject &obj, QJsonObject &reply, QString *errMsg = nullptr);
     QString selectedRole() const; // "expert" | "factory" | ""
     void applyRoleTheme(const QString& roleKey); // 应用主题（"expert"/"factory"/"none"）
-    void installButtonHoverAnim();               // 按钮悬停动效
     void installPasswordEye();                   // 安装“密码可见”按钮
 
 private:
